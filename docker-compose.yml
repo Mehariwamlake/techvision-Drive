@@ -1,8 +1,9 @@
-version: "3.7"
+version: "3.8"
 
 services:
   mariadb:
     image: mariadb:10.8
+    restart: unless-stopped
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -12,38 +13,35 @@ services:
       - mariadb-data:/var/lib/mysql
 
   redis-cache:
-    image: redis:alpine
+    image: redis:7-alpine
+    restart: unless-stopped
 
   redis-queue:
-    image: redis:alpine
+    image: redis:7-alpine
+    restart: unless-stopped
 
   frappe:
     image: frappe/bench:latest
+    restart: unless-stopped
     depends_on:
       - mariadb
       - redis-cache
       - redis-queue
+    ports:
+      - "8001:8000"
+    volumes:
+      - frappe-bench:/home/frappe/frappe-bench
     environment:
       DB_HOST: mariadb
       DB_PORT: 3306
       REDIS_CACHE: redis://redis-cache:6379
       REDIS_QUEUE: redis://redis-queue:6379
-    ports:
-      - "8001:8000"
-    volumes:
-      - .:/workspace
-    working_dir: /workspace
     command: >
       bash -c "
-      bench init frappe-bench &&
-      cd frappe-bench &&
-      bench new-site site1.local
-        --db-root-password=123
-        --admin-password=admin &&
-      bench get-app erpnext &&
-      bench --site site1.local install-app erpnext &&
+      cd /home/frappe/frappe-bench &&
       bench start
       "
 
 volumes:
   mariadb-data:
+  frappe-bench:
